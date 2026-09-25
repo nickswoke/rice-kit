@@ -1,0 +1,112 @@
+//
+//  GestureButtonTests.swift
+//  RiceKit
+//
+//  Forked from GestureButton by Daniel Saidi.
+//  Copyright © 2024-2026 Daniel Saidi. All rights reserved.
+//
+
+#if os(iOS) || os(macOS) || os(watchOS) || os(visionOS)
+import SwiftUI
+import XCTest
+@testable import RiceKit
+
+private final class Recorder<Value: Sendable>: @unchecked Sendable {
+
+    private let lock = NSLock()
+    private var storage = [Value]()
+
+    var count: Int {
+        lock.withLock { storage.count }
+    }
+
+    var values: [Value] {
+        lock.withLock { storage }
+    }
+
+    func append(_ value: Value) {
+        lock.withLock { storage.append(value) }
+    }
+}
+
+final class GestureButtonTests: XCTestCase {
+
+    func testButtonSizeContainsLocation() {
+        let size = CGSize(width: 100, height: 50)
+
+        XCTAssertTrue(size.containsGestureLocation(CGPoint(x: 50, y: 25)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: 0, y: 25)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: 50, y: 0)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: 100, y: 25)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: 50, y: 50)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: -1, y: 25)))
+        XCTAssertFalse(size.containsGestureLocation(CGPoint(x: 50, y: 51)))
+        XCTAssertFalse(CGSize.zero.containsGestureLocation(CGPoint(x: 0, y: 0)))
+    }
+
+    func testSetIsPressedWritesOnlyChangesToBinding() {
+        let bindings = Recorder<Bool>()
+        let binding = Binding(
+            get: { false },
+            set: { bindings.append($0) }
+        )
+        let state = GestureButtonState(isPressed: binding)
+
+        state.setIsPressed(false)
+        state.setIsPressed(true)
+        state.setIsPressed(true)
+        state.setIsPressed(false)
+        state.setIsPressed(false)
+
+        XCTAssertEqual(bindings.values, [true, false])
+    }
+
+    func testSetIsPressedUpdatesStateWithoutBinding() {
+        let state = GestureButtonState()
+
+        state.setIsPressed(true)
+        XCTAssertTrue(state.isPressed)
+
+        state.setIsPressed(false)
+        XCTAssertFalse(state.isPressed)
+    }
+
+    func testSetIsPressedUpdatesStateWithConstantBinding() {
+        let state = GestureButtonState(isPressed: .constant(false))
+
+        state.setIsPressed(true)
+
+        XCTAssertTrue(state.isPressed)
+    }
+
+    func testResetClearsPressedStateAndStopsRepeatTimer() {
+        let bindings = Recorder<Bool>()
+        let binding = Binding(
+            get: { false },
+            set: { bindings.append($0) }
+        )
+        let state = GestureButtonState(isPressed: binding)
+        state.setIsPressed(true)
+        state.repeatTimer.start {}
+        XCTAssertTrue(state.repeatTimer.isActive)
+
+        state.reset()
+
+        XCTAssertFalse(state.isPressed)
+        XCTAssertFalse(state.repeatTimer.isActive)
+        XCTAssertEqual(bindings.values, [true, false])
+    }
+
+    func testTearDownMarksRemovedAndResets() {
+        let state = GestureButtonState()
+        state.setIsPressed(true)
+        state.repeatTimer.start {}
+
+        state.tearDown()
+
+        XCTAssertTrue(state.isRemoved)
+        XCTAssertFalse(state.isPressed)
+        XCTAssertFalse(state.repeatTimer.isActive)
+    }
+}
+#endif
