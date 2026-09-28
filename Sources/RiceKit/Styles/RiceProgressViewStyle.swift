@@ -12,11 +12,54 @@ public struct RiceProgressViewStyle: ProgressViewStyle {
     }
     
     public func makeBody(configuration: Configuration) -> some View {
-        if configuration.fractionCompleted == nil {
-            IndeterminateSpinner(showsBackground: showsBackground, strokeFraction: strokeFraction, strokeWidth: strokeWidth)
+        if let fractionCompleted = configuration.fractionCompleted {
+            DeterminateProgressRing(
+                progress: fractionCompleted,
+                showsBackground: showsBackground,
+                strokeWidth: strokeWidth
+            )
         } else {
-            ProgressView(configuration)
+            IndeterminateSpinner(
+                showsBackground: showsBackground,
+                strokeFraction: strokeFraction,
+                strokeWidth: strokeWidth
+            )
         }
+    }
+}
+
+private struct DeterminateProgressRing: View {
+    let progress: Double
+    let showsBackground: Bool
+    let strokeWidth: CGFloat
+
+    private var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+
+    var body: some View {
+        ZStack {
+            if showsBackground {
+                Circle()
+                    .stroke(
+                        Color.accentColor.opacity(0.2),
+                        style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
+                    )
+            }
+
+            Circle()
+                .trim(from: 0, to: clampedProgress)
+                .stroke(
+                    Color.accentColor,
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+        }
+        .frame(width: 32, height: 32)
+        .animation(.snappy(duration: 0.2), value: clampedProgress)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Progress")
+        .accessibilityValue("\(Int(clampedProgress * 100)) percent")
     }
 }
 
