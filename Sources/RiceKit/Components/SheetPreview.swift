@@ -68,8 +68,8 @@ public struct SheetPreview<Content: View>: View {
     
     private var background: some View {
         ZStack {
-            theme.primaryColor.opacity(0.1)
-            RiceGrid(resolution: 10, strokeThickness: 1, color: .gray.opacity(0.2))
+            theme.primaryColor
+            RiceGrid(resolution: 10, strokeThickness: 1, color: .black.opacity(0.2))
                
         }
         .ignoresSafeArea()
